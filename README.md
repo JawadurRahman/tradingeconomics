@@ -1,3 +1,6 @@
+### Here is my Output
+![image](https://github.com/user-attachments/assets/fadb8f2f-f62a-402a-9198-6aeabd8c6be6)
+I used Node.js for the backend and D3.js for displaying the chart. (see server.js file in nodejs folder and index.html in the root level)
 
 ### Introduction
 
