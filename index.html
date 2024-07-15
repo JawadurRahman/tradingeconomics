@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mexico GDP Data Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .line {
+            fill: none;
+            stroke: steelblue;
+            stroke-width: 2px;
+        }
+        .dot {
+            fill: steelblue;
+            stroke: white;
+            stroke-width: 1.5px;
+        }
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            width: auto;
+            height: auto;
+            padding: 2px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mexico GDP Data Visualization</h1>
+    <div id="chart"></div>
+
+    <script>
+        async function fetchMexicoData() {
+            try {
+                const response = await fetch('http://localhost:3000/api/mexico-gdp');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return null;
+            }
+        }
+
+        fetchMexicoData().then(data => {
+            if (data) {
+                //console.log('Raw Mexico GDP data:', data);
+
+                // Parse date and value
+                const parseDate = d3.timeParse('%Y-%m-%dT%H:%M:%S');
+                data = data.map(d => ({ date: parseDate(d.DateTime), value: +d.Value }));
+
+                //console.log('Parsed Mexico GDP data:', data);
+
+                // Filter out invalid data
+                data = data.filter(d => d.date && !isNaN(d.value));
+
+                //console.log('Filtered Mexico GDP data:', data);
+
+                // Set the dimensions and margins of the graph
+                const margin = { top: 20, right: 30, bottom: 50, left: 50 },
+                    width = 800 - margin.left - margin.right,
+                    height = 400 - margin.top - margin.bottom;
+
+                // Append the svg object to the body of the page
+                const svg = d3.select('#chart')
+                    .append('svg')
+                    .attr('width', width + margin.left + margin.right)
+                    .attr('height', height + margin.top + margin.bottom)
+                    .append('g')
+                    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+                // Add X axis
+                const x = d3.scaleTime()
+                    .domain(d3.extent(data, d => d.date))
+                    .range([0, width]).nice();
+                svg.append('g')
+                    .attr('transform', `translate(0,${height})`)
+                    .call(d3.axisBottom(x));
+
+                // Add Y axis
+                const y = d3.scaleLinear()
+                    .domain([0, d3.max(data, d => d.value)])
+                    .range([height, 0]).nice();
+                svg.append('g')
+                    .call(d3.axisLeft(y));
+
+                // Add the line
+                svg.append('path')
+                    .datum(data)
+                    .attr('class', 'line')
+                    .attr('d', d3.line()
+                        .x(d => x(d.date))
+                        .y(d => y(d.value))
+                    );
+
+                // Add the dots
+                svg.selectAll('.dot')
+                    .data(data)
+                    .enter().append('circle')
+                    .attr('class', 'dot')
+                    .attr('cx', d => x(d.date))
+                    .attr('cy', d => y(d.value))
+                    .attr('r', 3);
+
+                // Add X axis label
+                svg.append('text')
+                    .attr('text-anchor', 'end')
+                    .attr('x', width)
+                    .attr('y', height + 40)
+                    .text('Date');
+
+                // Add Y axis label
+                svg.append('text')
+                    .attr('text-anchor', 'end')
+                    .attr('transform', 'rotate(-90)')
+                    .attr('y', -40)
+                    .attr('x', -margin.top)
+                    .text('GDP (Billion USD)');
+
+                // Add tooltip
+                const tooltip = d3.select('body').append('div')
+                    .attr('class', 'tooltip')
+                    .style('opacity', 0);
+
+                svg.selectAll('.dot')
+                    .on('mouseover', (event, d) => {
+                        tooltip.transition()
+                            .duration(200)
+                            .style('opacity', .9);
+                        tooltip.html(`GDP: ${d.value}<br>Date: ${d3.timeFormat('%Y-%m-%d')(d.date)}`)
+                            .style('left', (event.pageX + 5) + 'px')
+                            .style('top', (event.pageY - 28) + 'px');
+                    })
+                    .on('mouseout', () => {
+                        tooltip.transition()
+                            .duration(500)
+                            .style('opacity', 0);
+                    });
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+        });
+    </script>
+</body>
+</html>
